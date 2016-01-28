@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+<CSP name="DictionaryBuilder.csp" application="/csp/dictbuilder/" default="1"><![CDATA[
+<html ng-app="dictApp">
+<head>
+
+<title>	iKnow Dictionary Builder </title>
+
+<script type="text/javascript" src="nglib/jquery-1.9.0.min.js"></script>
+<script type="text/javascript" src="nglib/angular.min.js"></script>
+<script type="text/javascript" src="nglib/bootstrap/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="nglib/angular-resource.min.js"></script>
+<script type="text/javascript" src="nglib/angular-sanitize.min.js"></script> 
+<script type="text/javascript" src="DictionaryBuilder.js"></script>
+
+<link rel="stylesheet" type="text/css" href="nglib/bootstrap/css/bootstrap.min.css" />
+
+<style type="text/css">
+
+body {
+	padding: 20px;
+}
+
+.tab-pane {
+    padding-top:10px;
+}
+
+.glyphicon {
+    cursor: pointer;
+}
+.glyphicon.pull-left,
+.glyphicon.pull-right {
+	line-height: 1.5;
+}
+
+.panel .table {
+	margin-bottom: 0px;
+}
+
+.panel-sm {
+}
+.panel-sm .panel-heading {
+	padding: 5px 10px;
+}
+.panel-sm .panel-body {
+	padding: 5px;
+}
+</style>
+
+</head>
+
+<body>
+<div class="container" ng-controller="DomainController as dc">
+
+<div class="row" style="margin-bottom: 10px;">
+
+<div class="col-md-4">
+<div class="input-group">
+<input type="text" class="form-control" ng-model="term" placeholder="Entity" ng-keyup="typeEntity($event)" />
+<span class="input-group-btn">
+<button class="btn btn-default" ng-click="getEntities(term)" >Go!</button>
+</span>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="input-group">
+<input type="text" class="form-control" ng-model="dictName" placeholder="Dictionary" />
+<span class="input-group-btn">
+<button class="btn btn-default" ng-click="createDictionary()" >New</button>
+</span>
+</div>
+</div>
+
+<div class="col-md-4">
+<button class="btn btn-primary pull-right" ng-click="saveAll()">Save all</button>
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="col-md-4">
+<div class="panel panel-default">
+<div class="panel-heading"><b>Entities</b>
+<span class="pull-right">
+<div class="btn-group">
+<button type="button" class="btn btn-default btn-sm dropdown-toggle" id="ent-filter" data-toggle="dropdown" aria-haspopup="true">Filter <span class="caret" ></span></button>
+<ul class="dropdown-menu" aria-labelledby="ent-filter">
+<li><a href="#" ng-click="entFilter = 2">all entities</a></li>
+<li><a href="#" ng-click="entFilter = 1">exclude full matches</a></li>
+<li><a href="#" ng-click="entFilter = 0.001">exclude all matches</a></li>
+</ul>
+</div>
+</span>
+    	
+</div>
+<div style="max-height: 500px; overflow-y: scroll;">
+<table class="table table-hover">
+<tr ng-repeat="e in entities | filter:filterEntities()" isc-draggable="{{e.EntityValue}}">
+<td>{{e.EntityValue}}</td><td align="right">{{e.Frequency}}</td>
+<td><span class="glyphicon" ng-class="{'glyphicon-star': e.HighestScore==1, 'glyphicon-star-empty': (e.HighestScore>0)&&(e.HighestScore<1)}"></span>
+</tr>
+</table>
+</div>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="panel panel-primary">
+<div class="panel-heading">
+<span class="glyphicon glyphicon-chevron-left pull-left" ng-class="{'disabled': currentDictionary==0}" ng-click="selectDictionary(currentDictionary-1)" ></span>
+<b style="margin: 0px 10px;">{{dictionaries[currentDictionary].name}} &nbsp;</b>
+<div class="pull-right">
+<button class="btn btn-sm btn-default isc-droppable" style="padding: 2px 10px;" 
+isc-droppable="newItem(data, true)" ng-click="newItem('', false)" >new item</button>
+<span class="glyphicon glyphicon-chevron-right" ng-class="{'disabled': currentDictionary==(dictionaries.length-1)}" ng-click="selectDictionary(currentDictionary+1)" ></span>
+</div>
+</div>
+<div style="max-height: 500px; overflow-y: scroll;">
+<table class="table table-hover">
+<tr ng-repeat="item in dictionaries[currentDictionary].items" class="isc-droppable"
+	isc-droppable="addTerm(data,item)" >
+<td title="">{{item.name}} ({{item.terms.length}})
+<button class="btn btn-sm btn-default isc-droppable pull-right" style="padding: 4px;" 
+isc-droppable="selectItem(item, data)" ng-click="selectItem(item);"><span class="glyphicon glyphicon-cog"></span></button>
+</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+
+<!-- right column -->
+<div class="col-md-4">
+
+<!-- dictionary picklist -->
+<h3 style="margin-top: 0px;">Dictionaries</h3>
+<div class="panel panel-sm" ng-repeat="d in dictionaries" style="margin-bottom: 10px; cursor: pointer;"
+	 ng-click="selectDictionary($index)"
+	 isc-droppable="newItem(data,true)" isc-drag-enter="selectDictionary($index)"
+   ng-class="{'panel-primary': $index == currentDictionary, 'panel-default': $index != currentDictionary}">
+<div class="panel-heading"><b>{{d.name}}</b></div>
+<div class="panel-body isc-droppable text-muted">{{dictionaries[$index].items.length}} items</div>
+</div>
+
+<!-- blacklist -->
+<h3 style="margin-top: 30px;">Blacklists</h3>
+<div class="panel panel-sm panel-warning" isc-droppable="addToBlacklist(data)">
+<div class="panel-heading">
+<span class="glyphicon glyphicon-chevron-left pull-left" ng-click="selectBlacklist(currentBlacklist-1)" ></span>
+<b style="margin: 0px 10px;">{{blacklists[currentBlacklist].name}} &nbsp;</b>
+<span class="glyphicon glyphicon-chevron-right pull-right" ng-click="selectBlacklist(currentBlacklist+1)" ></span>
+</div>
+<div class="panel-body isc-droppable text-muted">{{blacklists[currentBlacklist].entries.length}} entries</div>
+</div>
+
+</div>
+
+
+
+
+<div class="modal fade" id="modItem">
+<div class="modal-dialog">
+<div class="modal-content">
+<div class="modal-header">
+<span class="glyphicon glyphicon-remove close" data-dismiss="modal"> </span>
+<h4 class="modal-title">Dictionary Item: {{currentItem.name}}</h4>
+</div>
+<div class="modal-body">
+<form>
+<div class="form-group">
+<label>Item name</label>
+<input type="text" class="form-control" ng-model="currentItem.name" />
+</div>
+<div class="form-group">
+<label>Item URI</label>
+<input type="text" class="form-control" ng-model="currentItem.uri" />
+</div>
+<div class="form-group">
+<label>Terms &nbsp; <span class="glyphicon glyphicon-plus" ng-click="currentItem.terms.push({string:''})"></span></label>
+<div class="input-group" ng-repeat="t in currentItem.terms" style="margin-bottom: 2px;">
+<input type="text" class="form-control isc-term-string" ng-model="t.string" />
+<span class="input-group-btn"><button class="btn btn-default">&nbsp;<span class="glyphicon glyphicon-remove" ng-click="dropTerm($index)"></span></button></span>
+</div>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" ng-click="dropItem(currentItem)">Remove</button>
+<button class="btn btn-primary" ng-click="saveItem()">Apply</button>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+</div>
+</body>
+</html>
+]]></CSP>
+</Export>

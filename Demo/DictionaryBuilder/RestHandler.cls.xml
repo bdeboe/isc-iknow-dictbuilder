@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+<Class name="Demo.DictionaryBuilder.RestHandler">
+<IncludeCode>%IKPublic</IncludeCode>
+<IncludeGenerator>%IKPublic</IncludeGenerator>
+<Super>%CSP.REST</Super>
+<TimeCreated>63922,56421.535301</TimeCreated>
+
+<Parameter name="IKPAGESIZE">
+<Type>INTEGER</Type>
+<Default>200</Default>
+</Parameter>
+
+<Parameter name="IKPFILTERMODE">
+<Type>INTEGER</Type>
+<Expression>$$$FILTERALLANDSORT</Expression>
+</Parameter>
+
+<Parameter name="JSONFORMATPARAMS">
+<Type>STRING</Type>
+<Default>aelotwu</Default>
+</Parameter>
+
+<XData name="UrlMap">
+<XMLNamespace>http://www.intersystems.com/urlmap</XMLNamespace>
+<Data><![CDATA[
+<Routes>
+<Route Url="/Domain/:domain/Sentences/Entity/:entity" Method="GET" Call="GetSentencesByEntity"/>
+
+<Route Url="/Domain/:domain/Entities" Method="POST" Call="GetEntities"/>
+
+<Route Url="/Domain/:domain/Blacklists" Method="GET" Call="GetBlacklists"/>
+
+<Route Url="/Domain/:domain/Dictionaries" Method="GET" Call="GetDictionaries"/>
+<Route Url="/Domain/:domain/Dictionaries" Method="POST" Call="UpdateDictionaries"/>
+</Routes>
+]]></Data>
+</XData>
+
+<Method name="GetDictionaries">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		
+		set tJSON.dictionaries = ##class(%ListOfObjects).%New()
+		set tSC = ##class(%iKnow.Matching.DictionaryAPI).GetDictionaries(.tDicts, pDomainId, 0, 0)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tDicts(i), 1, tDictData)
+			quit:i=""
+			
+			set tDict = ##class(%ZEN.proxyObject).%New()
+			set tDict.id = $lg(tDictData,1)
+			set tDict.name = $lg(tDictData,2)
+			set tDict.items = ##class(%ListOfObjects).%New()
+			do tJSON.dictionaries.Insert(tDict)
+			
+			set tSC = ##class(%iKnow.Matching.DictionaryAPI).GetDictionaryItems(.tItems, pDomainId, tDict.id, 0, 0)
+			quit:$$$ISERR(tSC)
+			set j = ""
+			for {
+				set j = $order(tItems(j),1,tItemData)
+				quit:j=""
+				
+				set tItem = ##class(%ZEN.proxyObject).%New()
+				set tItem.id = $lg(tItemData,1)
+				set tItem.name = $lg(tItemData,2)
+				set tItem.uri = $lg(tItemData,3)
+				set tItem.terms = ##class(%ListOfObjects).%New()
+				do tDict.items.Insert(tItem)
+				
+				set tSC = ##class(%iKnow.Matching.DictionaryAPI).GetDictionaryTermsByItem(.tTerms, pDomainId, tItem.id, 0, 0)
+				quit:$$$ISERR(tSC)
+				set k = ""
+				for {
+					set k = $order(tTerms(k), 1, tTermData)
+					quit:k=""
+					
+					set tTerm = ##class(%ZEN.proxyObject).%New()
+					set tTerm.id = $lg(tTermData,1)
+					set tTerm.string = $lg(tTermData,2)
+					do tItem.terms.Insert(tTerm)
+				}
+			}
+		}
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetBlacklists">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		
+		set tJSON.blacklists = ##class(%ListOfObjects).%New()
+		set tSC = ##class(%iKnow.Utils.MaintenanceAPI).GetBlackLists(.tResult, pDomainId)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tResult(i), 1, tData)
+			quit:i=""
+			
+			set tBL = ##class(%ZEN.proxyObject).%New()
+			set tBL.id = $lg(tData,1)
+			set tBL.name = $lg(tData,2)
+			set tBL.entries = ##class(%ListOfDataTypes).%New()
+			do tJSON.blacklists.Insert(tBL)
+			
+			set tSC = ##class(%iKnow.Utils.MaintenanceAPI).GetBlackListElements(.tItems, pDomainId, tBL.id)
+			quit:$$$ISERR(tSC)
+			set j = ""
+			for {
+				set j = $order(tItems(j),1,tItemData)
+				quit:j=""
+				
+				do tBL.entries.Insert($lg(tItemData,2))
+			}
+		}
+		
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="UpdateDictionaries">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSONString = ""
+		while '%request.Content.AtEnd {
+			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
+		}
+		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tRequest)
+		quit:$$$ISERR(tSC)
+		
+		// this is rather brutal, but simple
+		/*set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropAllDictionaryData(..domain)
+		quit:$$$ISERR(tSC)*/
+		
+		if $isobject(tRequest.dictionaries) {
+			for i = 1:1:tRequest.dictionaries.Count() {
+				set tDict = tRequest.dictionaries.GetAt(i)
+				if (tDict.id) {
+					set tDictObj = ##class(%iKnow.Objects.Dictionary).PKINDEXOpen(pDomainId, tDict.id)
+					if '$isobject(tDictObj) {
+						set tDict.id = ""
+					} elseif (tDictObj.Name'=tDict.name) {
+						set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropDictionary(pDomainId, tDict.id)
+						quit:$$$ISERR(tSC)
+						set tDict.id = ""
+					}
+				}
+				if 'tDict.id {
+					set tDict.id = ##class(%iKnow.Matching.DictionaryAPI).CreateDictionary(pDomainId, tDict.name,,,, .tSC)
+					quit:$$$ISERR(tSC)
+				}
+				set tDicts(tDict.id)=""
+				
+				kill tItems
+				if $isobject(tDict.items) {
+					for j = 1:1:tDict.items.Count() {
+						set tItem = tDict.items.GetAt(j)
+						if (tItem.id) {
+							set tItemObj = ##class(%iKnow.Objects.DictionaryItem).PKINDEXOpen(pDomainId, tItem.id)
+							if '$isobject(tItemObj) {
+								set tItem.id = ""
+							} elseif (tItem.name'=tItemObj.Name) || (tItem.uri'=tItemObj.URI) {
+								set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropDictionaryItem(pDomainId, tItem.id)
+								quit:$$$ISERR(tSC)
+								set tItem.id = ""
+							}
+						}
+						if 'tItem.id {
+							set tItem.id = ##class(%iKnow.Matching.DictionaryAPI).CreateDictionaryItem(pDomainId, tDict.id, tItem.name, tItem.uri,, .tSC)
+							quit:$$$ISERR(tSC)
+						}
+						set tItems(tItem.id)=""
+						
+						// TODO: terms
+						if $isobject(tItem.terms) {
+							for k = 1:1:tItem.terms.Count() {
+								set tTerm = tItem.terms.GetAt(k)
+								if (tTerm.id) {
+									set tTermObj = ##class(%iKnow.Objects.DictionaryTerm).PKINDEXOpen(pDomainId, tTerm.id)
+									if '$isobject(tTermObj) {
+										set tTerm.id = ""
+									} elseif (tTerm.string'=tTermObj.String) {
+										set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropDictionaryTerm(pDomainId, tTerm.id)
+										quit:$$$ISERR(tSC)
+										set tTerm.id = ""
+									}
+								}
+								if 'tTerm.id {
+									set tTerm.id = ##class(%iKnow.Matching.DictionaryAPI).CreateDictionaryTerm(pDomainId, tItem.id, tTerm.string,, .tSC)
+									quit:$$$ISERR(tSC)
+								}
+								set tTerms(tTerm.id) = ""
+								
+								// TODO: kill removed terms
+							}
+							quit:$$$ISERR(tSC)
+						}
+						
+						// TODO: kill removed items
+						
+					}
+					quit:$$$ISERR(tSC)
+				}
+			}
+			quit:$$$ISERR(tSC)
+		}
+		
+		// TODO: kill removed dicts
+		
+		
+		if $isobject(tRequest.blacklists) {
+			for i = 1:1:tRequest.blacklists.Count() {
+				set tBL = tRequest.blacklists.GetAt(i)
+				if (tBL.id) {
+					set tBLObj = ##class(%iKnow.Objects.BlackList).PKINDEXOpen(pDomainId, tBL.id)
+					if '$isobject(tBLObj) {
+						set tBL.id =""
+					} elseif (tBLObj.Name '= tBL.name) {
+						do ##class(%iKnow.Utils.MaintenanceAPI).DropBlackList(pDomainId, tBL.id)
+						set tBL.id=""
+					}
+				}
+				if (tBL.id) {
+					do ##class(%iKnow.Utils.MaintenanceAPI).ClearBlackList(pDomainId, tBL.id)
+				} else {
+					set tBL.id = ##class(%iKnow.Utils.MaintenanceAPI).CreateBlackList(pDomainId, tBL.name,, .tSC)
+					quit:$$$ISERR(tSC)
+				}
+				
+				for j = 1:1:tBL.entries.Count() {
+					do ##class(%iKnow.Utils.MaintenanceAPI).AddStringToBlackList(pDomainId, tBL.id, tBL.entries.GetAt(j))
+				}
+			}
+			quit:$$$ISERR(tSC)
+			
+			// TODO: kill removed BLs
+		}
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	s ^bdb($i(^bdb)) = tSC
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSentencesByEntity">
+<Description><![CDATA[
+Retrieves all sentences (including full text) in the domain containing <var>pEntity</var> and prints them as JSON]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pEntity:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set:$data(%response) %response.ContentType="application/json"
+		
+		set tEntityId = ##class(%iKnow.Queries.EntityAPI).GetId(pDomainId, pEntity)
+		set tHighlight("ENTITY", tEntityId) = "<b class=""entity"" title=""entity '"_$zcvt(pEntity,"O","HTML")_"'"">"
+		
+		set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, pEntity,,, ..#IKPAGESIZE)
+		quit:$$$ISERR(tSC)
+		
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		set tJSON.Sentences = ##class(%ListOfObjects).%New()
+		set i = ""
+		for {
+			set i = $order(tSentences(i), 1, tSentData)
+			quit:i=""
+			set tSentId = $lg(tSentData,3)
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.SourceId = $lg(tSentData,1)
+			set tProxy.ExternalId = $lg(tSentData,2)
+			set tProxy.SentenceId = $lg(tSentData,3)
+			set tProxy.Text = ..GetHighlightedSentence(pDomainId, tProxy.SentenceId, .tHighlight, .tSC)
+			quit:$$$ISERR(tSC)
+			
+			do tJSON.Sentences.Insert(tProxy)
+		}
+		quit:$$$ISERR(tSC)
+		
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+		
+    } catch (ex) {
+        set tSC=ex.AsStatus()
+    }
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSourcesInternal">
+<Description>
+Utility method to print a list of sources to JSON</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pDomainId:%Integer,pFilter:%iKnow.Filters.Filter="",pFilterByEntity:%String="",&pHighlight,pGetMetadata:%Boolean=1]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set:$data(%response) %response.ContentType="application/json"
+		
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		set tJSON.Sources = ##class(%ListOfObjects).%New()
+		set tSC = ##class(%iKnow.Queries.SourceAPI).GetByDomain(.tResult, pDomainId, 1, ..#IKPAGESIZE,  pFilter)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tResult(i), 1, tData)
+			quit:i=""
+			
+			set tSrcId = $lg(tData,1)
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.SourceId = tSrcId
+			
+			// add fulltext
+			set tProxy.FullText = ..GetHighlightedSource(pDomainId, tSrcId, pFilterByEntity,, .pHighlight, .tSC)
+			quit:$$$ISERR(tSC)
+			
+			// add metadata
+			if pGetMetadata {
+				set tSC = ##class(%iKnow.Queries.MetadataAPI).GetValuesById(.tMetadata, pDomainId, tSrcId)
+				quit:$$$ISERR(tSC)
+				set j = ""
+				for {
+					set j = $order(tMetadata(j),1,tMD)
+					quit:j=""
+					set tFieldName = $li(tMD,2)
+					continue:tFieldName="DateIndexed"
+					set $property(tProxy,tFieldName) = $lg(tMD,3)
+				}
+			}
+			
+			do tJSON.Sources.Insert(tProxy)
+		}
+		
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetHighlightedSource">
+<Description><![CDATA[
+Retrieves a highlighted summary of the text in source <var>pSourceId</var>, optionally filtered to the
+sentences containing <var>pFilterByEntity</var>. At most <var>pMaxSentences</var> will be returned.
+Any markup in <var>pHighlight</var> is appended with default highlighting of negations]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pDomainId:%Integer,pSourceId:%Integer,pFilterByEntity:%String="",pMaxSentences:%Integer=5,&pHighlight,*pSC:%Status=$$$OK]]></FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	set pSC = $$$OK, tString = ""
+	try {
+		
+		// first select by entities
+		if (pFilterByEntity'="") {
+			set pHighlight("ENTITY", pFilterByEntity) = "<b class=""entity"" title=""entity '"_$zcvt(pFilterByEntity,"O","HTML")_"'"">"
+			set pSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, pFilterByEntity, $lb(pSourceId), 0)
+			quit:$$$ISERR(pSC)
+		} elseif $d(pHighlight("ENTITY")) {
+			set tEntity = "", tEntityList=""
+			for {
+				set tEntity = $order(pHighlight("ENTITY",tEntity))
+				quit:tEntity=""
+				set tEntityList = tEntityList _ $lb(tEntity)
+			}
+			set pSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, tEntityList, $lb(pSourceId), 0)
+			quit:$$$ISERR(pSC)
+		}
+		set i = "", tSentIDs = ""
+		for {
+			set i = $order(tSentences(i),1,tSentData)
+			quit:i=""
+			set tSentIDs = tSentIDs _ $li(tSentData,3,3)
+		}
+		
+		// now fetch the sentences of this source...
+		// first selected by whether they are in tSentIDs, then based on summary relevance
+		// and back in natural order
+		set tSQL = "SELECT SentenceId, SummaryRelevance FROM %iKnow_Objects.Sentence WHERE DomainId = ? AND SourceId = ?"
+		set tSQL = "SELECT TOP ? * FROM ("_tSQL_") ORDER BY CASE WHEN (SentenceId %INLIST ?) THEN 1 ELSE 0 END DESC, SummaryRelevance DESC"
+		set tSQL = "SELECT * FROM ("_tSQL_") ORDER BY SentenceId ASC"
+		set tStatement = ##class(%SQL.Statement).%New()
+		set pSC = tStatement.%Prepare(tSQL)
+		quit:$$$ISERR(pSC)
+		set tResult = tStatement.%Execute(pMaxSentences, pDomainId, pSourceId, tSentIDs)
+		
+		
+		set tSource = ##class(%iKnow.Objects.Source).PKINDEXOpen(pDomainId, pSourceId)
+		set tPrevSentId = tSource.FirstSentenceId-1, tSentId=""
+		while tResult.%Next() {
+			set tSentId = tResult.%Get("SentenceId")
+			
+			set:(tPrevSentId'=(tSentId-1)) tString = tString_" ... "
+			set tPrevSentId = tSentId
+			
+			set tString = tString _ ..GetHighlightedSentence(pDomainId, tSentId, .pHighlight, .pSC)
+			quit:$$$ISERR(pSC)
+		}
+		if tSentId'=(tSource.FirstSentenceId+tSource.SentenceCount-1) {
+			set tString = tString _ " ..."
+		}
+		
+	} catch (ex) {
+		set pSC = ex.AsStatus()
+	}
+	quit tString
+]]></Implementation>
+</Method>
+
+<Method name="GetHighlightedSentence">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pDomainId:%Integer,pSentenceId:%Integer,&pHighlight,*pSC:%Status]]></FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	set pSC = $$$OK, tSentence = ""
+	try {
+		// default highlighting
+		set tHighlight("ATTRIBUTE", $$$IKATTSENPOSITIVE) = "<span class=""sent-pos"">"
+		set tHighlight("ATTRIBUTE", $$$IKATTSENNEGATIVE) = "<font class=""sent-neg"">"
+		set tHighlight("ATTRIBUTE", $$$IKATTNEGATION) = "<u class=""negation"">"
+		
+		// append/override with explicit highlighting requirements
+		merge tHighlight = pHighlight
+		
+		set tSentence = ##class(%iKnow.Queries.SentenceAPI).GetHighlighted(pDomainId, pSentenceId, .tHighlight,,, .pSC)
+		
+	} catch (ex) {
+		set pSC = ex.AsStatus()
+	}
+	quit tSentence
+]]></Implementation>
+</Method>
+
+<Method name="GetEntities">
+<Description><![CDATA[
+Retrieves the top entities similar to <var>pString</var> and prints them to JSON]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSONString = ""
+		while '%request.Content.AtEnd {
+			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
+		}
+		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tRequest)
+		quit:$$$ISERR(tSC)
+		
+		if $isobject(tRequest.blacklists) {
+			set tBlacklists = ""
+			for i = 1:1:tRequest.blacklists.Count() {
+				set tBlacklists = tBlacklists_$lb(tRequest.blacklists.GetAt(i))
+			}
+		} else {
+			set tBlacklists = ""
+		}
+		
+		if (tRequest.entity = "") {
+			set tSC = ##class(%iKnow.Queries.EntityAPI).GetTop(.tResult, pDomainId, 1, ..#IKPAGESIZE, ..GetFilter(pDomainId, tRequest.filter), ..#IKPFILTERMODE,,,, tBlacklists)
+			quit:$$$ISERR(tSC)
+		} else {
+			set tSC = ##class(%iKnow.Queries.EntityAPI).GetSimilar(.tResult, pDomainId, tRequest.entity, 1, ..#IKPAGESIZE, ..GetFilter(pDomainId, tRequest.filter), ..#IKPFILTERMODE,, tBlacklists)
+			quit:$$$ISERR(tSC)
+		}
+		
+		set:$data(%response) %response.ContentType="application/json"
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		set tJSON.Seed = tRequest.entity
+
+		set i = "", tJSON.Entities = ##class(%ListOfObjects).%New()
+		for {
+			set i = $order(tResult(i), 1, tData)
+			quit:i=""
+			
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.EntityValue = $lg(tData,2)
+			set tProxy.Frequency = $lg(tData,3)
+			set tProxy.Spread = $lg(tData,4)
+			
+			set tProxy.Matches = ##class(%ListOfObjects).%New()
+			set tSC = ##class(%iKnow.Matching.MatchingAPI).GetDictionaryMatchesById(.tMatches, pDomainId, $lg(tData,1),, 0, 0)
+			quit:$$$ISERR(tSC)
+			set j = "", tProxy.HighestScore = 0
+			for {
+				set j = $order(tMatches(j),1,tMatchData)
+				quit:j=""
+				
+				set tMatch = ##class(%ZEN.proxyObject).%New()
+				set tMatch.Dict = $lg(tMatchData,1)
+				set tMatch.Score = $lg(tMatchData,8)
+				do tProxy.Matches.Insert(tMatch)
+				set:tProxy.HighestScore<tMatch.Score tProxy.HighestScore = tMatch.Score
+			}
+			
+			do tJSON.Entities.Insert(tProxy)
+		}
+		
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetFilter">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pFilterSpec:%String=""</FormalSpec>
+<ReturnType>%iKnow.Filters.Filter</ReturnType>
+<Implementation><![CDATA[	quit ""
+]]></Implementation>
+</Method>
+
+<Method name="ErrorHandler">
+<Description><![CDATA[
+Simple error handler, converting a <class>%Status</class> object to a JSON representation.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>Stat:%Status</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	if $$$ISERR(Stat) {
+		set errorcode=$piece(##class(%SYSTEM.Status).GetErrorCodes(Stat),",")
+		set errormessage=##class(%SYSTEM.Status).GetOneStatusText(Stat)
+		set errobj=##class(%ZEN.proxyObject).%New()
+		set errobj.ErrorNum=errorcode
+		set errobj.ErrorMessage=errormessage
+		Set %response.ContentType="application/json"
+		Do ##class(%ZEN.Auxiliary.jsonProvider).%ObjectToJSON(errobj)
+		set errobj=""
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+</Export>
