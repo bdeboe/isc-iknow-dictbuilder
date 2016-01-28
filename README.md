@@ -11,8 +11,8 @@ This demo application is meant to illustrate *data-driven modelling*, how you ca
 
 ### Other notes
 * If you're working with a domain that's being managed by a domain definition, take note of the following
-** You can only modify your dictionary contents if the _allowCustomUpdates_ attribute of your <domain> element is set to true
-** By default, rebuilding a domain will wipe its dictionaries and recreate them based on the contents of the <matching> element. To preserve your work in the DictionaryBuilder GUI, make sure to set its _dropBeforeBuild_ attribute to false
+ * You can only modify your dictionary contents if the _allowCustomUpdates_ attribute of your <domain> element is set to true
+ * By default, rebuilding a domain will wipe its dictionaries and recreate them based on the contents of the <matching> element. To preserve your work in the DictionaryBuilder GUI, make sure to set its _dropBeforeBuild_ attribute to false
 
 
 ### TODO
