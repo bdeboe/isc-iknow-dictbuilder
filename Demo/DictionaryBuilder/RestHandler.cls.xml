@@ -233,6 +233,9 @@
 		
 		// TODO: kill removed dicts
 		
+		// job off matching of entity uniques
+		job ##class(%iKnow.Matching.MatchingAPI).MatchSources(pDomainId)
+		
 		
 		if $isobject(tRequest.blacklists) {
 			for i = 1:1:tRequest.blacklists.Count() {
