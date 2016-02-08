@@ -154,10 +154,6 @@
 		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tRequest)
 		quit:$$$ISERR(tSC)
 		
-		// this is rather brutal, but simple
-		/*set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropAllDictionaryData(..domain)
-		quit:$$$ISERR(tSC)*/
-		
 		if $isobject(tRequest.dictionaries) {
 			for i = 1:1:tRequest.dictionaries.Count() {
 				set tDict = tRequest.dictionaries.GetAt(i)
@@ -197,7 +193,7 @@
 						}
 						set tItems(tItem.id)=""
 						
-						// TODO: terms
+						// Terms
 						if $isobject(tItem.terms) {
 							for k = 1:1:tItem.terms.Count() {
 								set tTerm = tItem.terms.GetAt(k)
@@ -216,14 +212,41 @@
 									quit:$$$ISERR(tSC)
 								}
 								set tTerms(tTerm.id) = ""
+							}
+							quit:$$$ISERR(tSC)
+							
+							// kill removed terms: 
+							set tSC = ##class(%iKnow.Matching.DictionaryAPI).GetDictionaryTermsByItem(.tAllTerms, pDomainId, tItem.id, 0, 0)
+							quit:$$$ISERR(tSC)
+							set k = ""
+							for {
+								set k = $order(tAllTerms(k),1,tTermData)
+								quit:k=""
 								
-								// TODO: kill removed terms
+								set tDictTermId = $lg(tTermData,1)
+								continue:$d(tTerms(tDictTermId))
+								set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropDictionaryTerm(pDomainId, tDictTermId)
+								quit:$$$ISERR(tSC)
 							}
 							quit:$$$ISERR(tSC)
 						}
 						
-						// TODO: kill removed items
+					}
+					quit:$$$ISERR(tSC)
+					
+					
+					// kill removed items: 
+					set tSC = ##class(%iKnow.Matching.DictionaryAPI).GetDictionaryItems(.tAllItems, pDomainId, tDict.id, 0, 0)
+					quit:$$$ISERR(tSC)
+					set j = ""
+					for {
+						set j = $order(tAllItems(j),1,tItemData)
+						quit:j=""
 						
+						set tDictItemId = $lg(tItemData,1)
+						continue:$d(tItems(tDictItemId))
+						set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropDictionaryItem(pDomainId, tDictItemId)
+						quit:$$$ISERR(tSC)
 					}
 					quit:$$$ISERR(tSC)
 				}
@@ -231,9 +254,23 @@
 			quit:$$$ISERR(tSC)
 		}
 		
-		// TODO: kill removed dicts
+		// kill removed dicts 
+		set tSC = ##class(%iKnow.Matching.DictionaryAPI).GetDictionaries(.tAllDicts, pDomainId, 0, 0)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tAllDicts(i),1,tDictData)
+			quit:i=""
+			
+			set tDictId = $lg(tDictData,1)
+			continue:$d(tDicts(tDictId))
+			set tSC = ##class(%iKnow.Matching.DictionaryAPI).DropDictionary(pDomainId, tDictId)
+			quit:$$$ISERR(tSC)
+		}
+		quit:$$$ISERR(tSC)
 		
-		// job off matching of entity uniques
+		
+		// job off matching of entity uniques and sources
 		job ##class(%iKnow.Matching.MatchingAPI).MatchSources(pDomainId)
 		
 		
@@ -259,16 +296,31 @@
 				for j = 1:1:tBL.entries.Count() {
 					do ##class(%iKnow.Utils.MaintenanceAPI).AddStringToBlackList(pDomainId, tBL.id, tBL.entries.GetAt(j))
 				}
+				
+				set tBLIds(tBL.id)=""
 			}
 			quit:$$$ISERR(tSC)
-			
-			// TODO: kill removed BLs
 		}
+		
+		
+		// kill removed blacklists 
+		set tSC = ##class(%iKnow.Utils.MaintenanceAPI).GetBlackLists(.tAllBL, pDomainId, 0)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tAllBL(i),1,tData)
+			quit:i=""
+			
+			set tBLID = $lg(tData,1)
+			continue:$d(tBLIds(tBLID))
+			set tSC = ##class(%iKnow.Utils.MaintenanceAPI).DropBlackList(pDomainId, tBLID)
+			quit:$$$ISERR(tSC)
+		}
+		quit:$$$ISERR(tSC)
 		
 	} catch (ex) {
 		set tSC = ex.AsStatus()
 	}
-	s ^bdb($i(^bdb)) = tSC
 	quit ..ErrorHandler(tSC)
 ]]></Implementation>
 </Method>

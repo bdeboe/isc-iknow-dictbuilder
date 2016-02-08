@@ -140,7 +140,7 @@ isc-droppable="selectItem(item, data)" ng-click="selectItem(item);"><span class=
 	 ng-click="selectDictionary($index)"
 	 isc-droppable="newItem(data,true)" isc-drag-enter="selectDictionary($index)"
    ng-class="{'panel-primary': $index == currentDictionary, 'panel-default': $index != currentDictionary}">
-<div class="panel-heading"><b>{{d.name}}</b></div>
+<div class="panel-heading"><b>{{d.name}}</b><span class="glyphicon glyphicon-cog pull-right" ng-click="editDict($index);" /></div>
 <div class="panel-body isc-droppable text-muted">{{dictionaries[$index].items.length}} items</div>
 </div>
 
@@ -181,7 +181,7 @@ isc-droppable="selectItem(item, data)" ng-click="selectItem(item);"><span class=
 <label>Terms &nbsp; <span class="glyphicon glyphicon-plus" ng-click="currentItem.terms.push({string:''})"></span></label>
 <div class="input-group" ng-repeat="t in currentItem.terms" style="margin-bottom: 2px;">
 <input type="text" class="form-control isc-term-string" ng-model="t.string" />
-<span class="input-group-btn"><button class="btn btn-default">&nbsp;<span class="glyphicon glyphicon-remove" ng-click="dropTerm($index)"></span></button></span>
+<span class="input-group-btn"><button class="btn btn-default" ng-click="dropTerm($index)">&nbsp;<span class="glyphicon glyphicon-remove"></span></button></span>
 </div>
 </div>
 </form>
@@ -189,6 +189,30 @@ isc-droppable="selectItem(item, data)" ng-click="selectItem(item);"><span class=
 <div class="modal-footer">
 <button class="btn btn-default" ng-click="dropItem(currentItem)">Remove</button>
 <button class="btn btn-primary" ng-click="saveItem()">Apply</button>
+</div>
+</div>
+</div>
+</div>
+
+
+<div class="modal fade" id="modDict">
+<div class="modal-dialog">
+<div class="modal-content">
+<div class="modal-header">
+<span class="glyphicon glyphicon-remove close" data-dismiss="modal"> </span>
+<h4 class="modal-title">Dictionary: {{dictionaries[currentDictionary].name}}</h4>
+</div>
+<div class="modal-body">
+<form>
+<div class="form-group">
+<label>Dictionary name</label>
+<input type="text" class="form-control" ng-model="dictionaries[currentDictionary].name" />
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" ng-click="dropDict(currentDictionary)">Remove</button>
+<button class="btn btn-primary" ng-click="saveDict()">Apply</button>
 </div>
 </div>
 </div>

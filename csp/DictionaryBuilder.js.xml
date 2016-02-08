@@ -189,6 +189,18 @@ dictApp.controller('DomainController', ['$scope', '$filter', '$resource', '$sce'
 		if ((index < $scope.dictionaries.length) && (index >= 0))
 			$scope.currentDictionary = index;
 	}
+	$scope.editDict = function(index) {
+		$scope.currentDictionary = index;
+		$('#modDict').modal('show');
+	}
+	$scope.dropDict = function(index) {
+		var arr = $scope.dictionaries.slice(0,index);
+		$scope.dictionaries = arr.concat($scope.dictionaries.slice(index+1));
+		$('#modDict').modal('hide');
+	}
+	$scope.saveDict = function() {
+		$('#modDict').modal('hide');
+	}
 	
 	$scope.addTerm = function(term, item) {
 		item.terms[item.terms.length] = { string: term };
