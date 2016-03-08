@@ -17,5 +17,4 @@ This demo application is meant to illustrate *data-driven modelling*, how you ca
 
 ### TODO
 * add reload / reset button
-* clean up deleted terms, items and dictionaries as part of RestHandler:UpdateDictionaries()
 * nicen async re-matching as part of RestHandler:UpdateDictionaries() (currently just jobs this off, with no response to the client when it's done)
