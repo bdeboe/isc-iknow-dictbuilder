@@ -1,112 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Export generator="Cache" version="25">
 <CSP name="DictionaryBuilder.js" application="/csp/dictbuilder/" default="1"><![CDATA[
+hostURL = function() {
+	return location.href.split('/').slice(0,-1).join('/')+'/dbREST/Domain/:domain/';
+};
+
 var dictApp = angular.module('dictApp', ['ngResource', 'ngSanitize']);
 
-dictApp.directive('iscDraggable', function() {
-	
-    return {
-	    
-        scope: {
-	        data: '@iscDraggable'
-	    },
-	    link : function(scope, element, attr) {
-		    
-	        // this gives us the native JS object
-	        var el = element[0];
-
-	        el.draggable = true;
-
-	        el.addEventListener(
-	            'dragstart',
-	            function(e) {
-	                e.dataTransfer.effectAllowed = 'move';
-	                e.dataTransfer.setData('DragValue', scope.data);
-	                var targets = $('.isc-droppable');
-	                targets.filter('.btn').removeClass('btn-default').addClass('btn-info');
-	                targets.filter('tr').addClass('info');
-	                targets.filter('.panel-body').addClass('bg-info');
-	                return false;
-	            },
-	            false
-	        );
-	        
-	        el.addEventListener(
-	            'dragend',
-	            function(e) {
-	                var targets = $('.isc-droppable');
-	                targets.filter('.btn').removeClass('btn-info').addClass('btn-default');
-	                targets.filter('tr').removeClass('info');
-	                targets.filter('.panel-body').removeClass('bg-info');
-	                return false;
-	            },
-	            false
-	        );
-	        
-    	}
-    }
-});
-
-dictApp.directive('iscDroppable', function() {
-    return {
-        scope: {
-	        dropFunction: '&iscDroppable',
-	        dragEnterFunction: '&iscDragEnter'
-	    },
-        link: function(scope, element) {
-            // again we need the native object
-            var el = element[0];
-            
-            el.addEventListener(
-			    'dragover',
-			    function(e) {
-			        e.dataTransfer.dropEffect = 'move';
-			        // allows us to drop
-			        if (e.preventDefault) e.preventDefault();
-			        //this.classList.add('over');
-			        return false;
-			    },
-			    false
-			);
-			
-			el.addEventListener(
-			    'dragenter',
-			    function(e) {
-			        //this.classList.add('over');
-			        var sc = scope.dragEnterFunction({data: e.dataTransfer.getData('DragValue')});
-			        scope.$apply();
-			        return false;
-			    },
-			    false
-			);
-
-			/*
-			el.addEventListener(
-			    'dragleave',
-			    function(e) {
-			        this.classList.remove('over');
-			        return false;
-			    },
-			    false
-			);
-			*/
-			
-			el.addEventListener(
-			    'drop',
-			    function(e) {
-			        // Stops some browsers from redirecting.
-			        if (e.stopPropagation) e.stopPropagation();
-	                var sc = scope.dropFunction({data: e.dataTransfer.getData('DragValue')});
-	                scope.$apply();
-			        return false;
-			    },
-			    false
-			);
-        }
-    }
-});
-
-dictApp.controller('DomainController', ['$scope', '$filter', '$resource', '$sce', 'restEntities', 'restSentencesByEntity', 'restDictionaries', 'restBlacklists', function($scope, $filter, $resource, $sce, restEntities, restSentencesByEntity, restDictionaries, restBlacklists) {
+dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$sce', 'restEntities', 'restSentencesByEntity', 'restDictionaries', 'restBlacklists', function($scope, $filter, $resource, $sce, restEntities, restSentencesByEntity, restDictionaries, restBlacklists) {
 	
 	
 	// initialize ikDomain
@@ -156,18 +57,19 @@ dictApp.controller('DomainController', ['$scope', '$filter', '$resource', '$sce'
 		}
 	}
 	
-	$scope.getEntities = function (string) {
+	$scope.getMatches = true;
+	$scope.getEntities = function (string, overrideGetMatches) {
 		var bl = ($scope.blacklists.length > $scope.currentBlacklist) ? [$scope.blacklists[$scope.currentBlacklist].id] : [];
-		var temp = restEntities.query({domain:$scope.ikDomain}, {entity:string, blacklists:bl}, function(data) {
+		var temp = restEntities.query({domain:$scope.ikDomain}, {entity:string, blacklists:bl, getMatches:$scope.getMatches || overrideGetMatches}, function(data) {
 			$scope.entities = temp.Entities;
 			delete temp;
 		});
 	};
-	$scope.getEntities();
+	$scope.getEntities("");
 	
-	$scope.typeEntity = function(event) {
+	$scope.typeEntity = function(event, overrideGetMatches) {
 		if (event && ((event.keyCode==13) || (event.which==13))) {
-			$scope.getEntities($scope.term);
+			$scope.getEntities($scope.term, overrideGetMatches);
 		}
 	}
 	
@@ -281,16 +183,13 @@ dictApp.controller('DomainController', ['$scope', '$filter', '$resource', '$sce'
 	
 	$scope.filterEntities = function(prop){
 	    return function(item){
+		  if (item.HighestScore == null) return true;
 	      return (item.HighestScore < $scope.entFilter) && !item.skip;
 	    }
 	}
 	$scope.entFilter = 2;
 }]);
 	 
-hostURL = function() {
-	return location.href.split('/').slice(0,-1).join('/')+'/dbREST/Domain/:domain/';
-};
-
  
 function resourceErrorHandler(response) {
 	alert('ERROR     : ' + response.status + ' (' + response.statusText + ')\n'+
@@ -361,5 +260,125 @@ dictApp.factory('restBlacklists', function ($resource) {
 		}
 	});
 });
-]]></CSP>
+
+
+
+var _isc_drag_scroll = false;
+dictApp.directive('iscDraggable', function($document) {
+	
+	var mouseX, mouseY;
+    $document.on("dragover", function(event){
+      mouseY = event.originalEvent.clientY;
+    });
+    
+    return {
+        scope: {
+	        data: '@iscDraggable'
+	    },
+	    link : function(scope, element, attr) {
+		    
+	        // this gives us the native JS object
+	        var el = element[0];
+
+	        el.draggable = true;
+
+	        el.addEventListener(
+	            'dragstart',
+	            function(e) {
+	                e.dataTransfer.effectAllowed = 'move';
+	                e.dataTransfer.setData('DragValue', scope.data);
+	                var targets = $('.isc-droppable');
+	                targets.filter('.btn').removeClass('btn-default').addClass('btn-info');
+	                targets.filter('tr').addClass('info');
+	                targets.filter('.panel-body').addClass('bg-info');
+	                return false;
+	            },
+	            false
+	        );
+	        
+	        el.addEventListener(
+	            'dragend',
+	            function(e) {
+		            _isc_drag_scroll = false;
+	                var targets = $('.isc-droppable');
+	                targets.filter('.btn').removeClass('btn-info').addClass('btn-default');
+	                targets.filter('tr').removeClass('info');
+	                targets.filter('.panel-body').removeClass('bg-info');
+	                return false;
+	            },
+	            false
+	        );
+	        
+	        el.addEventListener(
+	        	'drag',
+	        	function(e) {
+		        	_isc_drag_scroll = false;
+			        if (mouseY < 50) {
+			            _isc_drag_scroll = true;
+			            _iscDragScroll(-1);
+			        }
+			        if (mouseY > (window.innerHeight - 50)) {
+			            _isc_drag_scroll = true;
+			            _iscDragScroll(1);
+			        }
+	        	}
+	        );
+    	}
+    }
+});
+
+_iscDragScroll = function(step) {
+    var scrollY = $(window).scrollTop();
+    $(window).scrollTop(scrollY + step);
+    if (_isc_drag_scroll) {
+        setTimeout(function () { _iscDragScroll(step) }, 20);
+    }
+}
+
+dictApp.directive('iscDroppable', function() {
+    return {
+        scope: {
+	        dropFunction: '&iscDroppable',
+	        dragEnterFunction: '&iscDragEnter'
+	    },
+        link: function(scope, element) {
+            // again we need the native object
+            var el = element[0];
+            
+            el.addEventListener(
+			    'dragover',
+			    function(e) {
+			        e.dataTransfer.dropEffect = 'move';
+			        // allows us to drop
+			        if (e.preventDefault) e.preventDefault();
+			        return false;
+			    },
+			    false
+			);
+			
+			el.addEventListener(
+			    'dragenter',
+			    function(e) {
+			        //this.classList.add('over');
+			        var sc = scope.dragEnterFunction({data: e.dataTransfer.getData('DragValue')});
+			        scope.$apply();
+			        return false;
+			    },
+			    false
+			);
+			
+			el.addEventListener(
+			    'drop',
+			    function(e) {
+			        // Stops some browsers from redirecting.
+			        if (e.stopPropagation) e.stopPropagation();
+	                var sc = scope.dropFunction({data: e.dataTransfer.getData('DragValue')});
+	                scope.$apply();
+			        return false;
+			    },
+			    false
+			);
+        }
+    }
+});]]></CSP>
 </Export>

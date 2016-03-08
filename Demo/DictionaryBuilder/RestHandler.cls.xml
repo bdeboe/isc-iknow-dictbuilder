@@ -562,19 +562,21 @@ Retrieves the top entities similar to <var>pString</var> and prints them to JSON
 			set tProxy.Frequency = $lg(tData,3)
 			set tProxy.Spread = $lg(tData,4)
 			
-			set tProxy.Matches = ##class(%ListOfObjects).%New()
-			set tSC = ##class(%iKnow.Matching.MatchingAPI).GetDictionaryMatchesById(.tMatches, pDomainId, $lg(tData,1),, 0, 0)
-			quit:$$$ISERR(tSC)
-			set j = "", tProxy.HighestScore = 0
-			for {
-				set j = $order(tMatches(j),1,tMatchData)
-				quit:j=""
-				
-				set tMatch = ##class(%ZEN.proxyObject).%New()
-				set tMatch.Dict = $lg(tMatchData,1)
-				set tMatch.Score = $lg(tMatchData,8)
-				do tProxy.Matches.Insert(tMatch)
-				set:tProxy.HighestScore<tMatch.Score tProxy.HighestScore = tMatch.Score
+			if (tRequest.getMatches) {
+				set tProxy.Matches = ##class(%ListOfObjects).%New()
+				set tSC = ##class(%iKnow.Matching.MatchingAPI).GetDictionaryMatchesById(.tMatches, pDomainId, $lg(tData,1),, 0, 0)
+				quit:$$$ISERR(tSC)
+				set j = "", tProxy.HighestScore = 0
+				for {
+					set j = $order(tMatches(j),1,tMatchData)
+					quit:j=""
+					
+					set tMatch = ##class(%ZEN.proxyObject).%New()
+					set tMatch.Dict = $lg(tMatchData,1)
+					set tMatch.Score = $lg(tMatchData,8)
+					do tProxy.Matches.Insert(tMatch)
+					set:tProxy.HighestScore<tMatch.Score tProxy.HighestScore = tMatch.Score
+				}
 			}
 			
 			do tJSON.Entities.Insert(tProxy)

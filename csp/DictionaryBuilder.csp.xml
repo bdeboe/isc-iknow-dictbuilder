@@ -50,7 +50,7 @@ body {
 </head>
 
 <body>
-<div class="container" ng-controller="DomainController as dc">
+<div class="container" ng-controller="DictionaryController as dc">
 
 <div class="row" style="margin-bottom: 10px;">
 
@@ -58,7 +58,7 @@ body {
 <div class="input-group">
 <input type="text" class="form-control" ng-model="term" placeholder="Entity" ng-keyup="typeEntity($event)" />
 <span class="input-group-btn">
-<button class="btn btn-default" ng-click="getEntities(term)" >Go!</button>
+<button class="btn btn-default" ng-click="getEntities(term, true)" >Go!</button>
 </span>
 </div>
 </div>
