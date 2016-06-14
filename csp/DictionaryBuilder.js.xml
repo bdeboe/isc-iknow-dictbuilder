@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Export generator="Cache" version="25">
-<CSP name="DictionaryBuilder.js" application="/csp/dictbuilder/" default="1"><![CDATA[
-hostURL = function() {
-	return location.href.split('/').slice(0,-1).join('/')+'/dbREST/Domain/:domain/';
+<CSP name="DictionaryBuilder.js" application="/csp/dictionarybuilder/" default="1"><![CDATA[
+hostURL = function(domain) {
+	 if (!domain) { domain = ':domain'; }
+	return location.href.split('/').slice(0,-1).join('/')+'/dbREST/Domain/'+domain+'/';
 };
 
-var dictApp = angular.module('dictApp', ['ngResource', 'ngSanitize']);
+var dictApp = angular.module('dictApp', ['ngSanitize']);
 
-dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$sce', 'restEntities', 'restSentencesByEntity', 'restDictionaries', 'restBlacklists', function($scope, $filter, $resource, $sce, restEntities, restSentencesByEntity, restDictionaries, restBlacklists) {
+dictApp.controller('DictionaryController', ['$scope', '$filter', '$sce', function($scope, $filter, $sce) {
 	
 	
 	// initialize ikDomain
@@ -24,13 +25,13 @@ dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$
 	
 	
 	$scope.getBlacklists = function() {
-		var tempbl = restBlacklists.query({domain:$scope.ikDomain}, function(data) {
-			if (!tempbl.blacklists || (tempbl.blacklists.length==0)) {
+     	$.get(hostURL($scope.ikDomain)+'Blacklists', function(data) {
+			if ((data.blacklists==undefined) || (data.blacklists.length==0)) {
 				$scope.blacklists = [{ name:'Default blacklist', entries:[]}];
 			} else {
-				$scope.blacklists = tempbl.blacklists;
+				$scope.blacklists = data.blacklists;
 			}
-			delete tempbl;
+			$scope.$apply();
 		});
 	}
 	$scope.blacklists = [];
@@ -60,10 +61,16 @@ dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$
 	$scope.getMatches = true;
 	$scope.getEntities = function (string, overrideGetMatches) {
 		var bl = ($scope.blacklists.length > $scope.currentBlacklist) ? [$scope.blacklists[$scope.currentBlacklist].id] : [];
-		var temp = restEntities.query({domain:$scope.ikDomain}, {entity:string, blacklists:bl, getMatches:$scope.getMatches || overrideGetMatches}, function(data) {
-			$scope.entities = temp.Entities;
-			delete temp;
-		});
+	  	$.ajax({
+	  		url: hostURL($scope.ikDomain)+'Entities',
+	  		method: 'POST',
+	  		contentType: 'application/json; charset=UTF-8',
+	  		data: JSON.stringify( {entity:string, blacklists:bl, getMatches:$scope.getMatches || overrideGetMatches} ),
+  			success: function(data) {
+				$scope.entities = data.Entities;
+				$scope.$apply();
+       		}
+	  	});
 	};
 	$scope.getEntities("");
 	
@@ -75,9 +82,10 @@ dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$
 	
 	
 	$scope.getDictionaries = function() {
-		temp = restDictionaries.query({domain:$scope.ikDomain}, function(data) {
-			$scope.dictionaries = temp.dictionaries;
-			delete temp;
+     	$.get(hostURL($scope.ikDomain)+'Dictionaries', function(data) {
+			$scope.dictionaries = data.dictionaries;
+			if (!$scope.dictionaries) $scope.dictionaries = [];
+			$scope.$apply();
 		});
 	}
 	$scope.getDictionaries();
@@ -173,12 +181,17 @@ dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$
 	
 	
 	$scope.saveAll = function() {
-		var temp = restDictionaries.update({domain:$scope.ikDomain}, {'dictionaries':$scope.dictionaries, 'blacklists':$scope.blacklists}, function(data) {
-			// TODO: catch errors?
-			$scope.getDictionaries();
-			$scope.getBlacklists();
-			$scope.getEntities($scope.term);
-		});
+	  $.ajax({
+	  		url: hostURL($scope.ikDomain)+'Dictionaries',
+	  		method: 'POST',
+	  		contentType: 'application/json; charset=UTF-8',
+	  		data: JSON.stringify( {'dictionaries':$scope.dictionaries, 'blacklists':$scope.blacklists} ),
+  			success: function(data) {
+				$scope.getDictionaries();
+				$scope.getBlacklists();
+				$scope.getEntities($scope.term);
+       		}
+	  });
 	}
 	
 	$scope.filterEntities = function(prop){
@@ -189,77 +202,6 @@ dictApp.controller('DictionaryController', ['$scope', '$filter', '$resource', '$
 	}
 	$scope.entFilter = 2;
 }]);
-	 
- 
-function resourceErrorHandler(response) {
-	alert('ERROR     : ' + response.status + ' (' + response.statusText + ')\n'+
-		  'REST call : ' + response.config.url);
-	console.log(response.data);
-};
-
-function transformResponseHandler(data, header) {
-	try {
-		return JSON.parse(data);
-	} catch (e) {
-		if (typeof header.ErrorMessage != 'undefined') {
-			alert('ERROR: '+ header.ErrorMessage);
-		} else {
-			alert('ERROR: ' + e);
-		}
-		console.log(data);
-	}
-	return {};
-};
-
-
-dictApp.factory('restEntities', function ($resource) {
-	return $resource(hostURL() + "Entities", {}, {
-		query: { method: "POST", isArray: false,
-					interceptor : {
-						responseError : resourceErrorHandler
-					},
-					transformResponse : transformResponseHandler
-		}
-	});
-}); 
-
-dictApp.factory('restSentencesByEntity', function ($resource) {
-	return $resource(hostURL() + "Sentences/Entity/:entity", {}, {
-		query: { method: "GET", isArray: false,
-					interceptor : {
-						responseError : resourceErrorHandler
-					},
-					transformResponse : transformResponseHandler
-		}
-	});
-});
-
-dictApp.factory('restDictionaries', function ($resource) {
-	return $resource(hostURL() + "Dictionaries", {}, {
-		query: { method: "GET", isArray: false,
-					interceptor : {
-						responseError : resourceErrorHandler
-					},
-					transformResponse : transformResponseHandler
-		},
-		update: { method: "POST", isArray: false,
-					interceptor : {
-						responseError : resourceErrorHandler
-					}
-		}
-	});
-});
-
-dictApp.factory('restBlacklists', function ($resource) {
-	return $resource(hostURL() + "Blacklists", {}, {
-		query: { method: "GET", isArray: false,
-					interceptor : {
-						responseError : resourceErrorHandler
-					},
-					transformResponse : transformResponseHandler
-		}
-	});
-});
 
 
 

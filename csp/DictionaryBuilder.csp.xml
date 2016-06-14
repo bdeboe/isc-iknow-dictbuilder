@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Export generator="Cache" version="25">
-<CSP name="DictionaryBuilder.csp" application="/csp/dictbuilder/" default="1"><![CDATA[
+<CSP name="DictionaryBuilder.csp" application="/csp/dictionarybuilder/" default="1"><![CDATA[
 <html ng-app="dictApp">
 <head>
 

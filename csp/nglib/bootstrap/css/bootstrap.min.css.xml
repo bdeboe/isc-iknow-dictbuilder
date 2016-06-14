@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Export generator="Cache" version="25">
-<CSP name="nglib/bootstrap/css/bootstrap.min.css" application="/csp/dictbuilder/" default="1"><![CDATA[
+<CSP name="nglib/bootstrap/css/bootstrap.min.css" application="/csp/dictionarybuilder/" default="1"><![CDATA[
 /*!
  * Bootstrap v3.2.0 (http://getbootstrap.com)
  * Copyright 2011-2014 Twitter, Inc.

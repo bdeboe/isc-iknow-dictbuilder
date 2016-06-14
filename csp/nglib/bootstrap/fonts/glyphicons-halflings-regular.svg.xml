@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Export generator="Cache" version="25">
-<CSP name="nglib/bootstrap/fonts/glyphicons-halflings-regular.svg" application="/csp/dictbuilder/" default="1"><![CDATA[
+<CSP name="nglib/bootstrap/fonts/glyphicons-halflings-regular.svg" application="/csp/dictionarybuilder/" default="1"><![CDATA[
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >
 <svg xmlns="http://www.w3.org/2000/svg">
