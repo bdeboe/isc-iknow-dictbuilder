@@ -2,6 +2,8 @@
 
 This demo application is meant to illustrate *data-driven modelling*, how you can use iKnow to build or refine a dictionary / taxonomy, demonstrating how our bottom-up approach complements top-down knowledge. It features a simple drag-and-drop GUI in which you can explore the entities in your domain (top/similar entities) and select the ones you wish to assign to your dictionaries (or blacklist).
 
+For a more detailed article on this demo, check this page on the InterSystems Developer Community: https://community.intersystems.com/post/iknow-demo-apps-part-3-dictionary-builder-demo
+
 
 ### Installation notes
 * Import associated code
