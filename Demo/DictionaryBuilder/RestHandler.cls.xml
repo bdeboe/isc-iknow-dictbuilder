@@ -322,6 +322,8 @@
 		}
 		quit:$$$ISERR(tSC)
 		
+		write "{}" // dummy output
+		
 	} catch (ex) {
 		set tSC = ex.AsStatus()
 	}
