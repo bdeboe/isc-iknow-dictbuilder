@@ -9,8 +9,10 @@
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
 	set tSC = $$$OK, tCreated=0, tCurrentNS = $$$LOWER($namespace)
+	set tappPrefix="/csp/"
+	set:##class(%Library.EnsembleMgr).IsHealthShareInstalled() tappPrefix="/csp/healthshare/"
 	try {
-		set:pWebAppName="" pWebAppName = "/csp/"_tCurrentNS_"/dbREST/"
+		set:pWebAppName="" pWebAppName = tappPrefix_tCurrentNS_"/dbREST/"
 		set tProperties("NameSpace") = tCurrentNS
 		set tProperties("DispatchClass") = "Demo.DictionaryBuilder.RestHandler"
 		set tProperties("AutheEnabled") = $$$AutheUnauthenticated
